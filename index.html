@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IQUEST: Educational Cyber Escape Room</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #020617;
+            color: #f8fafc;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .game-wrapper {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 1200px;
+            max-height: 800px;
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+            border-radius: 0px;
+            box-shadow: 0 0 70px rgba(236, 72, 153, 0.35), 0 0 100px rgba(56, 189, 248, 0.25);
+            overflow: hidden;
+            border: 2px solid #ec4899;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (min-width: 768px) {
+            .game-wrapper {
+                border-radius: 16px;
+                height: 95vh;
+                width: 95vw;
+            }
+        }
+
+        /* Screen Shake */
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-5px, 0, 0); }
+            20%, 80% { transform: translate3d(7px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-11px, 0, 0); }
+            40%, 60% { transform: translate3d(11px, 0, 0); }
+        }
+
+        /* Red Flash Overlay */
+        .flash-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(244, 63, 94, 0.4);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s ease;
+            z-index: 30;
+        }
+
+        .flash-overlay.active { opacity: 1; }
+
+        /* HUD Header */
+        .hud {
+            position: absolute;
+            top: 0; left: 0; width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 18px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 2px solid #ec4899;
+            z-index: 10;
+        }
+
+        .hud-logo {
+            font-size: 1.3rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #38bdf8, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 15px rgba(236, 72, 153, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .hud-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .hud-stats div span {
+            color: #38bdf8;
+            font-weight: 700;
+        }
+
+        #timer-display {
+            font-family: monospace;
+            font-size: 1.15rem;
+            color: #f43f5e;
+            text-shadow: 0 0 12px rgba(244, 63, 94, 0.85);
+        }
+
+        .audio-btn {
+            background: #1e293b;
+            border: 1px solid #ec4899;
+            color: #f472b6;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .audio-btn:hover {
+            background: #ec4899;
+            color: #fff;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #020617;
+        }
+
+        /* Penalty Text Fly-Away Animation */
+        #penaltyContainer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 35;
+        }
+
+        .flying-penalty {
+            position: absolute;
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #f43f5e;
+            text-shadow: 0 0 20px rgba(244, 63, 94, 0.95);
+            animation: flyUp 1.3s cubic-bezier(0.1, 0.8, 0.3, 1) FORWARDS;
+        }
+
+        @keyframes flyUp {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8); }
+            50% { opacity: 1; transform: translate(-50%, -140px) scale(1.4); }
+            100% { opacity: 0; transform: translate(-50%, -260px) scale(1); }
+        }
+
+        /* Overlays */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(2, 6, 23, 0.94);
+            backdrop-filter: blur(14px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            padding: 15px;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Entrance Screen Card */
+        .card {
+            background: rgba(15, 23, 42, 0.96);
+            border: 2px solid #ec4899;
+            width: 100%;
+            max-width: 540px;
+            padding: 20px 24px;
+            border-radius: 16px;
+            box-shadow: 0 0 50px rgba(236, 72, 153, 0.4), 0 0 30px rgba(56, 189, 248, 0.3);
+            text-align: center;
+            max-height: 94vh;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, #38bdf8, #ec4899, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 3px;
+            text-shadow: 0 0 20px rgba(236, 72, 153, 0.5);
+        }
+
+        .card .subtitle {
+            color: #94a3b8;
+            font-size: 0.88rem;
+        }
+
+        .input-group {
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            color: #e2e8f0;
+            font-size: 0.78rem;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 9px 12px;
+            background: #1e293b;
+            border: 1px solid #a855f7;
+            border-radius: 8px;
+            color: #f8fafc;
+            font-size: 0.92rem;
+            outline: none;
+        }
+
+        .avatar-selection {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .avatar-option {
+            flex: 1;
+            padding: 8px;
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.3rem;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .avatar-option.selected {
+            border-color: #ec4899;
+            background: #a855f7;
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.6);
+        }
+
+        .rules-box {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 0.78rem;
+            color: #cbd5e1;
+            line-height: 1.35;
+        }
+
+        .rules-box h3 {
+            color: #38bdf8;
+            margin-bottom: 4px;
+        }
+
+        .rules-box ul {
+            padding-left: 16px;
+        }
+
+        /* Always Visible Start Mission Button */
+        .start-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #ec4899, #a855f7, #38bdf8);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(236, 72, 153, 0.6);
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 4px;
+        }
+
+        .start-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* Modals */
+        .modal-box {
+            background: #0f172a;
+            border: 2px solid #ec4899;
+            width: 100%;
+            max-width: 500px;
+            padding: 22px;
+            border-radius: 14px;
+            box-shadow: 0 0 40px rgba(236, 72, 153, 0.4);
+            text-align: center;
+        }
+
+        .modal-box h2 {
+            color: #38bdf8;
+            margin-bottom: 12px;
+            font-size: 1.3rem;
+        }
+
+        .modal-box p {
+            color: #cbd5e1;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            margin-bottom: 18px;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .option-btn {
+            background: #1e293b;
+            color: #f8fafc;
+            border: 1px solid #a855f7;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover {
+            background: #a855f7;
+            border-color: #ec4899;
+        }
+
+        .btn-close {
+            background: #334155;
+            color: #fff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .victory-rank {
+            font-size: 2.8rem;
+            font-weight: 900;
+            color: #f59e0b;
+            text-shadow: 0 0 20px rgba(245, 158, 11, 0.8);
+            margin: 8px 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 12px 0;
+            text-align: left;
+            background: #1e293b;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-wrapper" id="gameWrapper">
+        <div class="flash-overlay" id="flashOverlay"></div>
+        <div id="penaltyContainer"></div>
+
+        <!-- HUD Header -->
+        <div class="hud">
+            <div class="hud-logo">
+                <span>⚡</span> IQUEST
+            </div>
+            <div class="hud-stats">
+                <div>Squad: <span id="hud-squad">--</span></div>
+                <div>Chamber: <span id="hud-room">1</span>/10</div>
+                <div>Time: <span id="timer-display">00:00.0</span></div>
+            </div>
+            <button class="audio-btn" id="audioToggle">🔊 Audio: ON</button>
+        </div>
+
+        <!-- Main Canvas -->
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- ENTRANCE SCREEN -->
+        <div class="overlay active" id="entranceOverlay">
+            <div class="card">
+                <div>
+                    <h1>IQUEST</h1>
+                    <div class="subtitle">10-Chamber Cyber Escape Room</div>
+                </div>
+
+                <div class="input-group">
+                    <label>SQUAD / TEAM NAME:</label>
+                    <input type="text" id="squadInput" placeholder="Enter team name..." value="Cyber Falcons">
+                </div>
+
+                <div class="input-group">
+                    <label>SELECT SQUAD AVATAR:</label>
+                    <div class="avatar-selection">
+                        <div class="avatar-option selected" data-avatar="🛡️">🛡️</div>
+                        <div class="avatar-option" data-avatar="🐉">🐉</div>
+                        <div class="avatar-option" data-avatar="⚡">⚡</div>
+                        <div class="avatar-option" data-avatar="🥷">🥷</div>
+                    </div>
+                </div>
+
+                <div class="rules-box">
+                    <h3>📜 MISSION RULES & MECHANICS:</h3>
+                    <ul>
+                        <li><b>Objective:</b> Escape all 10 chambers as fast as possible in a speedrun!</li>
+                        <li><b>Interactive Hints:</b> Tap or click room props for clues.</li>
+                        <li><b>Central Door:</b> Tap the glowing doorknob to unlock the chamber lock.</li>
+                        <li><b>Per-Chamber Reset Penalties:</b>
+                            <br>• 1st Wrong in Chamber: <b>+3:00 Penalty (+180s)</b>
+                            <br>• 2nd Wrong in Chamber: <b>+4:00 Penalty (+240s)</b>
+                            <br>• 3rd+ Wrong in Chamber: <b>+5:00 Penalty (+300s)</b>
+                            <br><i>*Counter resets back to 0 at every new chamber!</i>
+                        </li>
+                    </ul>
+                </div>
+
+                <button class="start-btn" id="startBtn">START MISSION 🚀</button>
+            </div>
+        </div>
+
+        <!-- PUZZLE MODAL -->
+        <div class="overlay" id="puzzleOverlay">
+            <div class="modal-box">
+                <h2 id="puzzleTitle">Chamber Challenge</h2>
+                <p id="puzzleQuestion">Loading puzzle...</p>
+                <div class="options-grid" id="optionsContainer"></div>
+                <button class="btn-close" id="closePuzzleBtn">CANCEL</button>
+            </div>
+        </div>
+
+        <!-- HINT MODAL -->
+        <div class="overlay" id="hintOverlay">
+            <div class="modal-box">
+                <h2 id="hintTitle">System Intel</h2>
+                <p id="hintText">Searching archive for clue...</p>
+                <button class="btn-close" id="closeHintBtn">CLOSE INTEL</button>
+            </div>
+        </div>
+
+        <!-- VICTORY SCREEN -->
+        <div class="overlay" id="victoryOverlay">
+            <div class="card">
+                <div>
+                    <h1>MISSION ACCOMPLISHED</h1>
+                    <div class="subtitle">All 10 Chambers Cleared!</div>
+                </div>
+
+                <div class="victory-rank" id="victoryRank">S-RANK</div>
+
+                <div class="stats-grid">
+                    <div>Squad: <span id="vicSquad" style="color:#38bdf8;"></span></div>
+                    <div>Raw Time: <span id="vicRawTime" style="color:#cbd5e1;"></span></div>
+                    <div>Total Penalties: <span id="vicPenalties" style="color:#f43f5e;"></span></div>
+                    <div>Final Score Time: <span id="vicFinalTime" style="color:#f59e0b; font-weight:bold;"></span></div>
+                </div>
+
+                <button class="start-btn" onclick="location.reload()">PLAY AGAIN 🔄</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameWrapper = document.getElementById('gameWrapper');
+        const flashOverlay = document.getElementById('flashOverlay');
+        const penaltyContainer = document.getElementById('penaltyContainer');
+
+        let gameState = 'ENTRANCE';
+        let currentRoom = 1;
+        let selectedAvatar = '🛡️';
+        let squadName = 'Cyber Falcons';
+        let audioMuted = false;
+
+        let startTime = 0;
+        let elapsedTime = 0;
+        let penaltySeconds = 0;
+        let chamberWrongAttempts = 0; // RESETS PER CHAMBER!
+        let totalWrongCount = 0;
+        let timerInterval = null;
+
+        let inputX = 0;
+        let inputY = 0;
+        let hoveredObject = null;
+        let doorOpenProgress = 0;
+        let isOpeningDoor = false;
+
+        function resizeCanvas() {
+            canvas.width = gameWrapper.clientWidth;
+            canvas.height = gameWrapper.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function getScaledObjects() {
+            const w = canvas.width;
+            const h = canvas.height;
+            return [
+                { id: 'door', name: 'Cyber Door', x: w * 0.4, y: h * 0.2, w: w * 0.2, h: h * 0.55, isDoor: true },
+                { id: 'window', name: 'Metropolis Window', x: w * 0.08, y: h * 0.15, w: w * 0.22, h: h * 0.28 },
+                { id: 'arcade', name: 'Arcade Terminal', x: w * 0.08, y: h * 0.52, w: w * 0.16, h: h * 0.28 },
+                { id: 'archive', name: 'Holo Archive', x: w * 0.26, y: h * 0.55, w: w * 0.12, h: h * 0.25 },
+                { id: 'frame', name: 'Grandmaster Frame', x: w * 0.72, y: h * 0.15, w: w * 0.2, h: h * 0.22 },
+                { id: 'core', name: 'Quantum Core', x: w * 0.75, y: h * 0.48, w: w * 0.17, h: h * 0.32 }
+            ];
+        }
+
+        const particles = Array.from({ length: 45 }, () => ({
+            x: Math.random() * window.innerWidth,
+            y: Math.random() * window.innerHeight,
+            vx: (Math.random() - 0.5) * 0.8,
+            vy: -Math.random() * 0.9 - 0.3,
+            size: Math.random() * 3.5 + 1,
+            color: ['#ec4899', '#38bdf8', '#a855f7', '#f59e0b'][Math.floor(Math.random() * 4)],
+            alpha: Math.random() * 0.7 + 0.3
+        }));
+
+        // Web Audio API Synthesizer
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let bgmInterval = null;
+
+        function initAudio() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function stopBGM() {
+            if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
+        }
+
+        function playSFX(type) {
+            if (audioMuted) return;
+            initAudio();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'hover') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(520, now);
+                gain.gain.setValueAtTime(0.015, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+                osc.start(now); osc.stop(now + 0.04);
+            } else if (type === 'click') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(880, now);
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                osc.start(now); osc.stop(now + 0.06);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.setValueAtTime(110, now + 0.15);
+                gain.gain.setValueAtTime(0.22, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
+            } else if (type === 'doorOpen') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(320, now);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+
+                const creak = audioCtx.createOscillator();
+                const creakG = audioCtx.createGain();
+                creak.connect(creakG);
+                creakG.connect(audioCtx.destination);
+                creak.type = 'sawtooth';
+                creak.frequency.setValueAtTime(130, now + 0.1);
+                creak.frequency.linearRampToValueAtTime(290, now + 0.5);
+                creak.frequency.linearRampToValueAtTime(190, now + 0.9);
+                creakG.gain.setValueAtTime(0.07, now + 0.1);
+                creakG.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+                creak.start(now + 0.1); creak.stop(now + 1.0);
+            }
+        }
+
+        // BGM Modes
+        function startEntranceBGM() {
+            stopBGM();
+            if (audioMuted) return;
+            initAudio();
+
+            let step = 0;
+            const chords = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63];
+
+            bgmInterval = setInterval(() => {
+                if (gameState !== 'ENTRANCE' || audioMuted) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(chords[step % chords.length], audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.35);
+                step++;
+            }, 250);
+        }
+
+        function startInGameBGM() {
+            stopBGM();
+            if (audioMuted) return;
+            initAudio();
+
+            let step = 0;
+            const bass = [110, 110, 146, 110, 164, 110, 146, 130];
+
+            bgmInterval = setInterval(() => {
+                if (gameState !== 'PLAYING' || audioMuted) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(bass[step % bass.length], audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.035, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.16);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.16);
+                step++;
+            }, 180);
+        }
+
+        function startVictoryBGM() {
+            stopBGM();
+            if (audioMuted) return;
+            initAudio();
+
+            let step = 0;
+            const fanfare = [523.25, 659.25, 783.99, 1046.50, 783.99, 659.25, 880.00, 1046.50];
+
+            bgmInterval = setInterval(() => {
+                if (audioMuted) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(fanfare[step % fanfare.length], audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.28);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.28);
+                step++;
+            }, 200);
+        }
+
+        // 10 Progressive Grade 10 Math & Logic Chambers
+        const roomData = {
+            1: {
+                title: "Chamber 1: Euclidean Geometry",
+                question: "What is the sum of interior angles in a standard triangle?",
+                options: ["90°", "180°", "270°", "360°"], correct: 1,
+                hints: { arcade: "🕹️ Straight line angle = 180°.", archive: "📚 Interior Sum = (n-2)×180° for n=3.", window: "🌃 Half of a 4-sided rectangle's 360°.", frame: "🖼️ 3 angles inside add up to 180°.", core: "⚛️ Constant: 180°." }
+            },
+            2: {
+                title: "Chamber 2: Combinatorics & Logic",
+                question: "You have 5 socks in a dark drawer (3 Red, 2 Blue). What is the minimum draw to GUARANTEE a matching pair?",
+                options: ["2 socks", "3 socks", "4 socks", "5 socks"], correct: 1,
+                hints: { arcade: "🕹️ Pigeonhole Principle!", archive: "📚 Only 2 possible colors.", window: "🌃 Worst case: Red then Blue.", frame: "🖼️ 3rd draw MUST match!", core: "⚛️ 2 colors + 1 = 3." }
+            },
+            3: {
+                title: "Chamber 3: Coordinate Slopes",
+                question: "What is the slope (m) of a line passing through (2, 3) and (4, 7)?",
+                options: ["m = 1", "m = 2", "m = 3", "m = 4"], correct: 1,
+                hints: { arcade: "🕹️ Slope m = (y₂ - y₁) / (x₂ - x₁).", archive: "📚 Change in Y = 7 - 3 = 4.", window: "🌃 Change in X = 4 - 2 = 2.", frame: "🖼️ 4 / 2 = 2.", core: "⚛️ Rise over run = 2." }
+            },
+            4: {
+                title: "Chamber 4: Circle Theorems",
+                question: "An inscribed angle subtends an arc of 80°. What is the measure of the inscribed angle?",
+                options: ["40°", "80°", "120°", "160°"], correct: 0,
+                hints: { arcade: "🕹️ Inscribed Angle = 1/2 of Intercepted Arc.", archive: "📚 Central angle = Arc measure = 80°.", window: "🌃 Inscribed angle is half the central angle.", frame: "🖼️ 80° / 2 = 40°.", core: "⚛️ Inscribed = Arc / 2." }
+            },
+            5: {
+                title: "Chamber 5: Arithmetic Sequences",
+                question: "Find the 10th term of the arithmetic sequence: 3, 7, 11, 15...",
+                options: ["35", "39", "43", "47"], correct: 1,
+                hints: { arcade: "🕹️ Formula: a_n = a_1 + (n - 1)d.", archive: "📚 First term a_1 = 3.", window: "🌃 Common difference d = 4.", frame: "🖼️ a_10 = 3 + (9 × 4).", core: "⚛️ 3 + 36 = 39." }
+            },
+            6: {
+                title: "Chamber 6: Quadratic Discriminants",
+                question: "What is the discriminant (b² - 4ac) of x² - 6x + 9 = 0?",
+                options: ["0", "9", "12", "36"], correct: 0,
+                hints: { arcade: "🕹️ a = 1, b = -6, c = 9.", archive: "📚 (-6)² = 36.", window: "🌃 4ac = 4(1)(9) = 36.", frame: "🖼️ 36 - 36 = 0.", core: "⚛️ Discriminant = 0 (1 real root)." }
+            },
+            7: {
+                title: "Chamber 7: Probability Mechanics",
+                question: "What is the probability of rolling a sum of 7 with two standard 6-sided dice?",
+                options: ["1/36", "1/12", "1/6", "1/4"], correct: 2,
+                hints: { arcade: "🕹️ Total combinations = 36.", archive: "📚 Favorable: (1,6), (2,5), (3,4), (4,3), (5,2), (6,1).", window: "🌃 6 favorable outcomes.", frame: "🖼️ 6 / 36 = 1 / 6.", core: "⚛️ Probability = 1/6." }
+            },
+            8: {
+                title: "Chamber 8: Right Triangle Trigonometry",
+                question: "In a right triangle, sin(θ) = 3/5. What is cos(θ)?",
+                options: ["3/4", "4/5", "5/4", "4/3"], correct: 1,
+                hints: { arcade: "🕹️ Opposite = 3, Hypotenuse = 5.", archive: "📚 Pythagorean triple: 3, 4, 5.", window: "🌃 Adjacent side = 4.", frame: "🖼️ cos(θ) = Adjacent / Hypotenuse.", core: "⚛️ 4 / 5." }
+            },
+            9: {
+                title: "Chamber 9: Combinations",
+                question: "How many ways can a committee of 2 students be chosen from a group of 5?",
+                options: ["5 ways", "10 ways", "15 ways", "20 ways"], correct: 1,
+                hints: { arcade: "🕹️ Formula: nCr = n! / [r!(n - r)!].", archive: "📚 5C2 = (5 × 4) / (2 × 1).", window: "🌃 20 / 2 = 10.", frame: "🖼️ Order does not matter.", core: "⚛️ 10 combinations." }
+            },
+            10: {
+                title: "Chamber 10: Final Core Logic",
+                question: "If 2^x = 32 and 3^y = 27, what is x + y?",
+                options: ["7", "8", "9", "10"], correct: 1,
+                hints: { arcade: "🕹️ Solve for x: 2^x = 32 ➔ x = 5.", archive: "📚 Solve for y: 3^y = 27 ➔ y = 3.", window: "🌃 x = 5, y = 3.", frame: "🖼️ x + y = 5 + 3 = 8.", core: "⚛️ Final answer = 8!" }
+            }
+        };
+
+        // Avatar Selection
+        document.querySelectorAll('.avatar-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                selectedAvatar = opt.dataset.avatar;
+                playSFX('click');
+            });
+        });
+
+        // Audio Toggle
+        document.getElementById('audioToggle').addEventListener('click', () => {
+            audioMuted = !audioMuted;
+            document.getElementById('audioToggle').innerText = audioMuted ? '🔇 Audio: OFF' : '🔊 Audio: ON';
+            if (!audioMuted) {
+                if (gameState === 'ENTRANCE') startEntranceBGM();
+                if (gameState === 'PLAYING') startInGameBGM();
+                if (gameState === 'VICTORY') startVictoryBGM();
+            } else {
+                stopBGM();
+            }
+        });
+
+        // Start Mission Button
+        document.getElementById('startBtn').addEventListener('click', () => {
+            initAudio();
+            playSFX('click');
+            squadName = document.getElementById('squadInput').value.trim() || 'Cyber Falcons';
+            document.getElementById('hud-squad').innerText = `${selectedAvatar} ${squadName}`;
+            
+            document.getElementById('entranceOverlay').classList.remove('active');
+            gameState = 'PLAYING';
+            startTime = Date.now();
+            chamberWrongAttempts = 0;
+            
+            timerInterval = setInterval(updateTimer, 100);
+            startInGameBGM();
+        });
+
+        startEntranceBGM();
+
+        function updateTimer() {
+            if (gameState !== 'PLAYING') return;
+            const now = Date.now();
+            elapsedTime = (now - startTime) / 1000;
+            const totalDisplayTime = elapsedTime + penaltySeconds;
+
+            const mins = Math.floor(totalDisplayTime / 60);
+            const secs = (totalDisplayTime % 60).toFixed(1);
+            document.getElementById('timer-display').innerText = 
+                `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        // Pointer / Touch Position Handler
+        function updatePointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            inputX = clientX - rect.left;
+            inputY = clientY - rect.top;
+
+            let foundHover = null;
+            if (gameState === 'PLAYING' && !isOpeningDoor) {
+                const roomObjects = getScaledObjects();
+                for (let obj of roomObjects) {
+                    if (inputX >= obj.x && inputX <= obj.x + obj.w &&
+                        inputY >= obj.y && inputY <= obj.y + obj.h) {
+                        foundHover = obj;
+                        break;
+                    }
+                }
+            }
+
+            if (foundHover !== hoveredObject) {
+                hoveredObject = foundHover;
+                if (hoveredObject) playSFX('hover');
+            }
+            canvas.style.cursor = hoveredObject ? 'pointer' : 'default';
+        }
+
+        canvas.addEventListener('mousemove', updatePointerPos);
+        canvas.addEventListener('touchmove', updatePointerPos);
+
+        function handleInteraction() {
+            if (!hoveredObject || gameState !== 'PLAYING' || isOpeningDoor) return;
+
+            playSFX('click');
+            if (hoveredObject.isDoor) {
+                openPuzzleModal();
+            } else {
+                openHintModal(hoveredObject.id, hoveredObject.name);
+            }
+        }
+
+        canvas.addEventListener('click', handleInteraction);
+        canvas.addEventListener('touchstart', (e) => {
+            updatePointerPos(e);
+            handleInteraction();
+        });
+
+        function openPuzzleModal() {
+            const r = roomData[currentRoom];
+            document.getElementById('puzzleTitle').innerText = r.title;
+            document.getElementById('puzzleQuestion').innerText = r.question;
+
+            const optsContainer = document.getElementById('optionsContainer');
+            optsContainer.innerHTML = '';
+
+            r.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt;
+                btn.onclick = () => submitAnswer(idx);
+                optsContainer.appendChild(btn);
+            });
+
+            document.getElementById('puzzleOverlay').classList.add('active');
+        }
+
+        document.getElementById('closePuzzleBtn').onclick = () => {
+            playSFX('click');
+            document.getElementById('puzzleOverlay').classList.remove('active');
+        };
+
+        function openHintModal(objectId, objectName) {
+            const r = roomData[currentRoom];
+            document.getElementById('hintTitle').innerText = `SYSTEM INTEL: ${objectName.toUpperCase()}`;
+            document.getElementById('hintText').innerText = r.hints[objectId] || "No intel available.";
+            document.getElementById('hintOverlay').classList.add('active');
+        }
+
+        document.getElementById('closeHintBtn').onclick = () => {
+            playSFX('click');
+            document.getElementById('hintOverlay').classList.remove('active');
+        };
+
+        // REVISED PENALTY LOGIC (+3m, +4m, +5m with Per-Chamber Reset)
+        function submitAnswer(chosenIndex) {
+            const r = roomData[currentRoom];
+            document.getElementById('puzzleOverlay').classList.remove('active');
+
+            if (chosenIndex === r.correct) {
+                playSFX('doorOpen');
+                isOpeningDoor = true;
+                doorOpenProgress = 0;
+
+                let openAnim = setInterval(() => {
+                    doorOpenProgress += 0.05;
+                    if (doorOpenProgress >= 1) {
+                        clearInterval(openAnim);
+                        isOpeningDoor = false;
+                        doorOpenProgress = 0;
+
+                        if (currentRoom < 10) {
+                            currentRoom++;
+                            chamberWrongAttempts = 0; // RESET FOR NEW CHAMBER!
+                            document.getElementById('hud-room').innerText = currentRoom;
+                        } else {
+                            triggerVictory();
+                        }
+                    }
+                }, 30);
+
+            } else {
+                // Incorrect Answer -> Apply Penalty based on Chamber Wrong Count
+                chamberWrongAttempts++;
+                totalWrongCount++;
+
+                let addedPenalty = 180; // 1st wrong: 3 mins (+180s)
+                let displayPenaltyText = "+3:00 PENALTY!";
+
+                if (chamberWrongAttempts === 2) {
+                    addedPenalty = 240; // 2nd wrong: 4 mins (+240s)
+                    displayPenaltyText = "+4:00 PENALTY!";
+                } else if (chamberWrongAttempts >= 3) {
+                    addedPenalty = 300; // 3rd+ wrong: 5 mins (+300s)
+                    displayPenaltyText = "+5:00 PENALTY!";
+                }
+
+                penaltySeconds += addedPenalty;
+                playSFX('error');
+
+                gameWrapper.classList.add('shake');
+                flashOverlay.classList.add('active');
+                setTimeout(() => gameWrapper.classList.remove('shake'), 400);
+                setTimeout(() => flashOverlay.classList.remove('active'), 200);
+
+                spawnFlyingPenalty(displayPenaltyText);
+            }
+        }
+
+        function spawnFlyingPenalty(text) {
+            const el = document.createElement('div');
+            el.className = 'flying-penalty';
+            el.innerText = text;
+            el.style.left = `${inputX}px`;
+            el.style.top = `${inputY}px`;
+            penaltyContainer.appendChild(el);
+
+            setTimeout(() => el.remove(), 1300);
+        }
+
+        function triggerVictory() {
+            gameState = 'VICTORY';
+            clearInterval(timerInterval);
+            document.getElementById('puzzleOverlay').classList.remove('active');
+
+            startVictoryBGM();
+
+            const finalSeconds = elapsedTime + penaltySeconds;
+            const mins = Math.floor(finalSeconds / 60);
+            const secs = (finalSeconds % 60).toFixed(1);
+
+            document.getElementById('vicSquad').innerText = `${selectedAvatar} ${squadName}`;
+            document.getElementById('vicRawTime').innerText = `${elapsedTime.toFixed(1)}s`;
+            document.getElementById('vicPenalties').innerText = `+${penaltySeconds}s (${totalWrongCount} total wrong)`;
+            document.getElementById('vicFinalTime').innerText = `${mins}m ${secs}s`;
+
+            let rank = 'S-RANK 🏆';
+            if (finalSeconds > 1200) rank = 'A-RANK 🥇';
+            if (finalSeconds > 2400) rank = 'B-RANK 🥈';
+            document.getElementById('victoryRank').innerText = rank;
+
+            document.getElementById('victoryOverlay').classList.add('active');
+        }
+
+        // Render Canvas Loop
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Wall Gradient
+            const wallGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.75);
+            wallGrad.addColorStop(0, '#090d16');
+            wallGrad.addColorStop(1, '#1e1b4b');
+            ctx.fillStyle = wallGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height * 0.75);
+
+            // Interactive Particles
+            particles.forEach(p => {
+                const dx = inputX - p.x;
+                const dy = inputY - p.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist < 180) {
+                    p.x += dx * 0.015;
+                    p.y += dy * 0.015;
+                }
+
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.y < 0) p.y = canvas.height;
+                if (p.x < 0) p.x = canvas.width;
+                if (p.x > canvas.width) p.x = 0;
+
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.alpha;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+            });
+
+            // Floor
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, canvas.height * 0.75, canvas.width, canvas.height * 0.25);
+
+            // Floor Grid
+            ctx.strokeStyle = '#ec4899';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let x = 0; x <= canvas.width; x += canvas.width * 0.08) {
+                ctx.moveTo(x, canvas.height * 0.75);
+                ctx.lineTo(x + (x - canvas.width * 0.5) * 0.8, canvas.height);
+            }
+            for (let y = canvas.height * 0.75; y <= canvas.height; y += 25) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+            }
+            ctx.stroke();
+
+            // Render Props
+            const roomObjects = getScaledObjects();
+            roomObjects.forEach(obj => {
+                const isHovered = hoveredObject && hoveredObject.id === obj.id;
+                ctx.save();
+
+                if (isHovered) {
+                    ctx.shadowColor = '#ec4899';
+                    ctx.shadowBlur = 22;
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 3;
+                } else {
+                    ctx.strokeStyle = '#a855f7';
+                    ctx.lineWidth = 1.5;
+                }
+
+                if (obj.isDoor) {
+                    ctx.fillStyle = '#1e1b4b';
+                    ctx.fillRect(obj.x - 10, obj.y - 10, obj.w + 20, obj.h + 10);
+                    ctx.strokeRect(obj.x - 10, obj.y - 10, obj.w + 20, obj.h + 10);
+
+                    if (doorOpenProgress > 0) {
+                        ctx.fillStyle = '#ec4899';
+                        ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+                    }
+
+                    const currentWidth = obj.w * (1 - doorOpenProgress);
+                    ctx.fillStyle = isHovered ? '#2e1065' : '#0f172a';
+                    ctx.fillRect(obj.x, obj.y, currentWidth, obj.h);
+                    ctx.strokeRect(obj.x, obj.y, currentWidth, obj.h);
+
+                    if (doorOpenProgress < 0.7) {
+                        const knobX = obj.x + currentWidth - 25;
+                        const knobY = obj.y + obj.h / 2;
+                        ctx.fillStyle = '#fbbf24';
+                        ctx.beginPath();
+                        ctx.arc(knobX, knobY, 12, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                } else if (obj.id === 'window') {
+                    ctx.fillStyle = '#020617';
+                    ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+                    ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillRect(obj.x + obj.w * 0.2, obj.y + obj.h * 0.3, 10, 20);
+                    ctx.fillStyle = '#ec4899';
+                    ctx.fillRect(obj.x + obj.w * 0.6, obj.y + obj.h * 0.2, 10, 25);
+
+                } else if (obj.id === 'arcade') {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+                    ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
+                    ctx.fillStyle = '#a855f7';
+                    ctx.fillRect(obj.x + 10, obj.y + 10, obj.w - 20, obj.h * 0.3);
+
+                } else if (obj.id === 'archive') {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+                    ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
+                    ctx.fillStyle = '#ec4899';
+                    ctx.fillRect(obj.x + 8, obj.y + 20, obj.w - 16, 5);
+                    ctx.fillRect(obj.x + 8, obj.y + 40, obj.w - 16, 5);
+
+                } else if (obj.id === 'frame') {
+                    ctx.fillStyle = '#1e1b4b';
+                    ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.font = 'bold 18px Segoe UI';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('f(x) = ∑', obj.x + obj.w / 2, obj.y + obj.h / 2 + 6);
+
+                } else if (obj.id === 'core') {
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+                    ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
+                    ctx.fillStyle = '#ec4899';
+                    ctx.beginPath();
+                    ctx.arc(obj.x + obj.w / 2, obj.y + obj.h / 2, 22, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.fillStyle = isHovered ? '#38bdf8' : '#f472b6';
+                ctx.font = 'bold 11px Segoe UI';
+                ctx.textAlign = 'center';
+                ctx.fillText(obj.name, obj.x + obj.w / 2, obj.y + obj.h + 16);
+
+                ctx.restore();
+            });
+
+            requestAnimationFrame(render);
+        }
+
+        requestAnimationFrame(render);
+    </script>
+</body>
+</html>
